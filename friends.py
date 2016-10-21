@@ -25,7 +25,7 @@ class Friend:
         self.whatsup = whatsup
 
     def __str__(self):
-        return "Friend %s with md5(%s), nickName:%s, alias:%s, contactRemark:%s, country:%s, state:%s, city:%s, whatsup:%s" % (self.userName, str(self.uNmd5), self.nickName, self.alias, self.contactRemark, self.country, self.state, self.city, self.whatsup)
+        return "Friend " + self.userName.encode('utf-8') + " with md5(" + self.uNmd5 +  "), nickName:" + self.nickName + ", alias:" + self.alias + ", contactRemark:" + self.contactRemark + ", country:" + self.country + ", state:" + self.state + ", city:" + self.city + ", whatsup:" + self.whatsup
 
 """
 collectFriendsMeta(): parse/collect the friend meta from WCDB_Contact.sqlite
@@ -66,12 +66,13 @@ def collectFriendsMeta():
         
         Friends[friend[0]] = Friend(friend[0], nickName, alias, contactRemark, country, state, city, whatsup)
 
+def main():
+    """ Initial the Friends Meta """
+    collectFriendsMeta()
+
+    """ Iterate through the Friends list and print the content """
     for userName, friend in Friends.iteritems():
         print friend
-        
-
-def main():
-    collectFriendsMeta()
 
 if __name__ == "__main__":
     main()
