@@ -47,7 +47,7 @@ class ChatRoom:
         for member in self.memberList:
             membersList += member + ", "
 
-        return "ChatRoom " + self.roomName.encode('utf-8') + " with md5(" + self.uNmd5 +  "), memberList:" + membersList + "roomCreator:" + self.roomCreator + ", roomDataXML:" + self.roomDataXML
+        return "ChatRoom " + self.roomName.encode('utf-8') + " with md5(" + self.uNmd5 +  "), memberList size is " + str(self.memberList.__len__()) + ", content:" + membersList + "roomCreator:" + self.roomCreator + ", roomDataXML:" + str(self.roomDataXML)
 
 """
 collectFriendsMeta(): parse/collect the friend meta from WCDB_Contact.sqlite
@@ -55,47 +55,49 @@ collectFriendsMeta(): parse/collect the friend meta from WCDB_Contact.sqlite
 def collectFriendsMeta():
     conn = sqlite3.connect("/Users/jiananwa/Documents/wechat_backup_jianan/8cd7299222b76fd76e53cc56e424a363/DB/WCDB_Contact.sqlite")
     c = conn.cursor()
-    c.execute("SELECT userName, dbContactRemark, dbContactHeadImage, dbContactProfile, dbContactChatRoom FROM Friend")
+
+    """ collect the Friends Meta First"""
+    c.execute("SELECT userName, dbContactRemark, dbContactHeadImage, dbContactProfile, dbContactChatRoom FROM Friend where userName not like '%@chatroom'")
     
     for friend in c.fetchall():
-        if "@chatroom" not in friend[0]:
-            """ If the entry is a friend record """
-            """ First parse the contact remark """
-            remarkDat = parsedbContactRemark(friend[1])
-            nickName = ''
-            if 0x0a in remarkDat.keys():
-                nickName = remarkDat[0x0a]
-                alias = ''
-            if 0x12 in remarkDat.keys():
-                alias = remarkDat[0x12]
-                contactRemark = ''
-            if 0x1a in remarkDat.keys():
-                contactRemark = remarkDat[0x1a]
+        """ First parse the contact remark """
+        remarkDat = parsedbContactRemark(friend[1])
+        nickName = ''
+        if 0x0a in remarkDat.keys():
+            nickName = remarkDat[0x0a]
+        alias = ''
+        if 0x12 in remarkDat.keys():
+            alias = remarkDat[0x12]
+        contactRemark = ''
+        if 0x1a in remarkDat.keys():
+            contactRemark = remarkDat[0x1a]
 
-            """ Next parse the contact head Image """
-            (MiniPhoto, HDPhoto) = parsedbContactHeadImage(friend[2])
+        """ Next parse the contact head Image """
+        (MiniPhoto, HDPhoto) = parsedbContactHeadImage(friend[2])
 
-            """ Then parse the contact profile """
-            profileDat = parsedbContactProfile(friend[3])
-            country = ''
-            if(profileDat.__len__() > 0):
-                country = profileDat[0]
-            state = ''
-            if(profileDat.__len__() > 1):
-                state = profileDat[1]
-            city = ''
-            if(profileDat.__len__() > 2):
-                city = profileDat[2]
-            whatsup = ''
-            if(profileDat.__len__() > 3):
-                whatsup = profileDat[3]
+        """ Then parse the contact profile """
+        profileDat = parsedbContactProfile(friend[3])
+        country = ''
+        if(profileDat.__len__() > 0):
+            country = profileDat[0]
+        state = ''
+        if(profileDat.__len__() > 1):
+            state = profileDat[1]
+        city = ''
+        if(profileDat.__len__() > 2):
+            city = profileDat[2]
+        whatsup = ''
+        if(profileDat.__len__() > 3):
+            whatsup = profileDat[3]
 
-            Friends[friend[0]] = Friend(friend[0], nickName, alias, contactRemark, MiniPhoto, HDPhoto, country, state, city, whatsup)
-        else:
-            """ If the entry is a chatroom record """
-            (memberList, roomCreator, RoomDataXML) = parsedbContactChatRoom(friend[4])
+        Friends[friend[0]] = Friend(friend[0], nickName, alias, contactRemark, MiniPhoto, HDPhoto, country, state, city, whatsup)
 
-            ChatRooms[friend[0]] = ChatRoom(friend[0], memberList, roomCreator, RoomDataXML)
+    """ collect the Chatrooms Meta Then"""
+    c.execute("SELECT userName, dbContactRemark, dbContactHeadImage, dbContactProfile, dbContactChatRoom FROM Friend where userName like '%@chatroom'")
+
+    for chatroom in c.fetchall():
+            (memberList, roomCreator, RoomDataXML) = parsedbContactChatRoom(chatroom[4], Friends)
+            ChatRooms[chatroom[0]] = ChatRoom(chatroom[0], memberList, roomCreator, RoomDataXML)
 
 def main():
     """ Initial the Friends Meta """

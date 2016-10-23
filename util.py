@@ -58,38 +58,54 @@ def parsedbContactHeadImage(binBuffer):
 parsedbContactChatRoom: input blob buffer for dbContactChatRoom in WCDB_Contact.sqlite
 ### There is some issue with the size calculation when the member list got pretty big,
 ### the size value is stored with two bytes instead of one in that case, and the values
-### are not corresponding well.
+### are not corresponding well. Use another method to work around this issue
 format: chatroom member userName lists, and a XML payload for RoomData
 output: a tuple of userName Lists, RoomCreator and XML payload data
 """
-def parsedbContactChatRoom(binBuffer):
+def parsedbContactChatRoom(binBuffer, Friends):
     binArray = bytearray(binBuffer)
     memberList = []
     RoomCreator = ''
     RoomDataXML = ''
 
-    """ Get the member list """
-    memberListSize = binArray[1]
-    memberListBin = binArray[2:2+memberListSize]
-    index = 0
-    memberSize = 0
-
-    while index < memberListSize:
-        if memberListBin[index] == ord(';'):
-            memberList.append(str(memberListBin[index-memberSize:index]))
-            memberSize = 0
+    """ Get the first member content """
+    firstMemberRule = re.compile('\n[^;]+;')
+    if firstMemberRule.search(binArray):
+        firstMember = firstMemberRule.search(str(binArray)).group()
+        if str(firstMember[2:-1]) in Friends:
+            memberList.append(str(firstMember[2:-1]))
         else:
-            memberSize += 1
-        index += 1
+            memberList.append(str(firstMember[3:-1]))
 
-    """ Get the chatroom creator string size/content """
-    RoomCreatorSize = binArray[3+memberListSize]
-    RoomCreator = str(binArray[4+memberListSize:4+memberListSize+RoomCreatorSize])
+    """ Get the second to final member content """
+    secondToFinalMemberListRule = re.compile(';(.*)\x12')
+    if secondToFinalMemberListRule.search(str(binArray)):
+        secondToFinalMember = secondToFinalMemberListRule.search(str(binArray)).group()
+        index = 1
+        memberSize = 0
+        while index < secondToFinalMember.__len__()-1:
+            if secondToFinalMember[index] == ';':
+                memberList.append(str(secondToFinalMember[index-memberSize:index]))
+                memberSize = 0
+            else:
+                memberSize += 1
+            index += 1
+        memberList.append(str(secondToFinalMember[index-memberSize:index]))
+
+    """ Get the chatroom creator content """
+    roomCreatorRule = re.compile('\x12(.*)\x18')
+    if roomCreatorRule.search(binArray):
+        roomCreator = roomCreatorRule.search(str(binArray)).group()
+        if(roomCreator[1] == '\x12'):
+            roomCreator = roomCreator[2:]
+        else:
+            roomCreator = roomCreator[1:]
+        RoomCreatorSize = ord(roomCreator[0])
+        RoomCreator = roomCreator[1:1+RoomCreatorSize]
 
     """ Get the room xml data """
-    roomDataXMLRule = re.compile("<RoomData>(.*?)<\/RoomData>")
-    roomDataXMLMatch = roomDataXMLRule.search(str(binBuffer))
-    if roomDataXMLMatch:
-        RoomDataXML = roomDataXMLMatch.group(0)
+    roomDataXMLRule = re.compile("<RoomData>(.*)<\/RoomData>")
+    if roomDataXMLRule.search(str(binArray)):
+        RoomDataXML = roomDataXMLRule.search(str(binArray)).group()
 
     return (memberList, RoomCreator, RoomDataXML)
