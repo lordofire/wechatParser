@@ -1,4 +1,10 @@
 import re
+import hashlib
+
+"""
+Some global variables
+"""
+m = hashlib.md5()
 
 """
 parsedbContactRemark: input blob buffer for dbContactRemark in WCDB_Contact.sqlite
@@ -44,11 +50,11 @@ output: a tuple of miniPhoto and a HDPhoto
 def parsedbContactHeadImage(binBuffer):
     profilePhotoMini = ''
     profilePhotoHD = ''
-    miniMatchRule = re.compile("http://wx.qlogo.cn/mmhead/([\w]+)/132")
+    miniMatchRule = re.compile("http://wx.qlogo.cn/mmhead/(.*)/132")
     miniMatch = miniMatchRule.search(str(binBuffer))
     if miniMatch:
         profilePhotoMini = miniMatch.group(0)
-    HDMatchRule = re.compile("http://wx.qlogo.cn/mmhead/([\w]+)/0")
+    HDMatchRule = re.compile("http://wx.qlogo.cn/mmhead/(.*)/0")
     HDMatch = HDMatchRule.search(str(binBuffer))
     if HDMatch:
         profilePhotoHD = HDMatch.group(0)
@@ -65,43 +71,62 @@ output: a tuple of userName Lists, RoomCreator and XML payload data
 def parsedbContactChatRoom(binBuffer, Friends):
     binArray = bytearray(binBuffer)
     memberList = []
+    memberCount = 0
     RoomCreator = ''
     RoomDataXML = ''
 
-    """ Get the first member content """
-    firstMemberRule = re.compile('\n[^;]+;')
-    if firstMemberRule.search(binArray):
-        firstMember = firstMemberRule.search(str(binArray)).group()
-        if str(firstMember[2:-1]) in Friends:
-            memberList.append(str(firstMember[2:-1]))
-        else:
-            memberList.append(str(firstMember[3:-1]))
+    """ The Chatromm is empty """
+    if binArray[1] == 0:
+        return (memberList, RoomCreator, RoomDataXML)
 
-    """ Get the second to final member content """
-    secondToFinalMemberListRule = re.compile(';(.*)\x12')
-    if secondToFinalMemberListRule.search(str(binArray)):
-        secondToFinalMember = secondToFinalMemberListRule.search(str(binArray)).group()
-        index = 1
-        memberSize = 0
-        while index < secondToFinalMember.__len__()-1:
-            if secondToFinalMember[index] == ';':
-                memberList.append(str(secondToFinalMember[index-memberSize:index]))
-                memberSize = 0
+    """ Get the member contents """
+    memberRule = re.compile('\n(.*)\x12')
+    if memberRule.search(binArray):
+        member = memberRule.search(str(binArray)).group()
+        memberCount = str(member[2:-1]).count(';') + 1
+
+    if memberCount == 1:
+        memberList.append(str(member[2:-2]))
+        RoomCreator = str(member[2:-2])
+    else:
+        """ Get the first member content """
+        firstMemberRule = re.compile('\n[^;]+;')
+        if firstMemberRule.search(binArray):
+            firstMember = firstMemberRule.search(str(binArray)).group()
+            if str(firstMember[2:-1]) in Friends:
+                memberList.append(str(firstMember[2:-1]))
             else:
-                memberSize += 1
-            index += 1
-        memberList.append(str(secondToFinalMember[index-memberSize:index]))
+                memberList.append(str(firstMember[3:-1]))
 
-    """ Get the chatroom creator content """
-    roomCreatorRule = re.compile('\x12(.*)\x18')
-    if roomCreatorRule.search(binArray):
-        roomCreator = roomCreatorRule.search(str(binArray)).group()
-        if(roomCreator[1] == '\x12'):
-            roomCreator = roomCreator[2:]
-        else:
-            roomCreator = roomCreator[1:]
-        RoomCreatorSize = ord(roomCreator[0])
-        RoomCreator = roomCreator[1:1+RoomCreatorSize]
+        """ Get the second to final member content """
+        secondToFinalMemberListRule = re.compile(';(.*)\x12')
+        if secondToFinalMemberListRule.search(str(binArray)):
+            secondToFinalMember = secondToFinalMemberListRule.search(str(binArray)).group()
+            index = 1
+            memberSize = 0
+            while index < secondToFinalMember.__len__()-1:
+                if secondToFinalMember[index] == ';':
+                    memberList.append(str(secondToFinalMember[index-memberSize:index]))
+                    memberSize = 0
+                else:
+                    memberSize += 1
+                index += 1
+            memberList.append(str(secondToFinalMember[index-memberSize:index]))
+
+        """ Get the chatroom creator content """
+        roomCreatorRule = re.compile('\x12(.*)\x18')
+        if roomCreatorRule.search(binArray):
+            roomCreator = roomCreatorRule.search(str(binArray)).group()
+            if(roomCreator[1] == '\x12'):
+                roomCreator = roomCreator[2:]
+            else:
+                roomCreator = roomCreator[1:]
+            RoomCreatorSize = ord(roomCreator[0])
+            RoomCreator = roomCreator[1:1+RoomCreatorSize]
+
+    """ Do the validation on the memberList count """
+    if len(memberList) != memberCount:
+        print "there is something wrong here for " + RoomCreator + ": memberList count is " + str(len(memberList)) + " and memberCount is " + str(memberCount)
 
     """ Get the room xml data """
     roomDataXMLRule = re.compile("<RoomData>(.*)<\/RoomData>")
