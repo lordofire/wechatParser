@@ -1,4 +1,5 @@
 from util import *
+import md5
 import sqlite3
 
 """
@@ -7,8 +8,10 @@ Wechat ChatRoom class, containing most of the useful information of a wechat cha
 class ChatRoom:
     def __init__(self, roomName, memberList, roomCreator, roomDataXML):
         self.roomName = roomName
-        m.update(roomName.encode('utf-8'))
-        self.uNmd5 = m.hexdigest()
+        try:
+            self.uNmd5 = md5.new(roomName).hexdigest()
+        except UnicodeEncodeError:
+            self.uNmd5 = md5.new(roomName.encode('utf-8')).hexdigest()
         self.memberList = memberList
         self.roomCreator = roomCreator
         self.roomDataXML = roomDataXML

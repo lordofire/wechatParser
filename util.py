@@ -2,11 +2,6 @@ import re
 import hashlib
 
 """
-Some global variables
-"""
-m = hashlib.md5()
-
-"""
 parsedbContactRemark: input blob buffer for dbContactRemark in WCDB_Contact.sqlite
 format: byte size key + size + value
 output: a map of key/value pairs

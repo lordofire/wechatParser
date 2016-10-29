@@ -1,4 +1,5 @@
 from util import *
+import md5
 import sqlite3
 
 """
@@ -7,8 +8,10 @@ Wechat Friend class, containing most of the useful information of a wechat frien
 class Friend:
     def __init__(self, userName, nickName, alias, contactRemark, MiniPhoto, HDPhoto, country, state, city, whatsup):
         self.userName = userName
-        m.update(userName.encode('utf-8'))
-        self.uNmd5 = m.hexdigest()
+        try:
+            self.uNmd5 = md5.new(userName).hexdigest()
+        except UnicodeEncodeError:
+            self.uNmd5 = md5.new(userName.encode('utf-8')).hexdigest()
         self.nickName = nickName
         self.alias = alias
         self.contactRemark = contactRemark

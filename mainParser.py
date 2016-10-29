@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import time
 from friends import *
 from chatrooms import *
 
@@ -30,7 +31,24 @@ def main():
 
         """ Iterate through the Friends list and print the content """
         for userName, friend in Friends.iteritems():
-           print friend
+            chatRecord = "Chat_" + friend.uNmd5
+            MMFile = weChatAccountFolder + "/DB/MM.sqlite"
+            conn = sqlite3.connect(MMFile)
+            c = conn.cursor()
+            try:
+                c.execute("select CreateTime, Message, Status from " + str(chatRecord))
+            except sqlite3.OperationalError:
+                print "This db " + str(chatRecord) + " is not found"
+                continue
+
+            print "This db " + str(chatRecord) + " for " + userName + " is found"
+            for chatEntry in c.fetchall():
+                timestamp = chatEntry[0]
+                content = chatEntry[1]
+                if chatEntry[2] == 2:
+                    print time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp)) + ", me: " + content
+                elif chatEntry[2] == 4:
+                    print time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp)) + ", " + userName + ": " + content
             print ''
 
         print "==========================================="
@@ -38,9 +56,9 @@ def main():
         print "==========================================="
 
         """ Iterate through the ChatRooms list and print the content """
-        for roomName, chatroom in ChatRooms.iteritems():
-            print chatroom
-            print ''
+#        for roomName, chatroom in ChatRooms.iteritems():
+#            print chatroom
+#            print ''
 
 
 if __name__ == "__main__":
